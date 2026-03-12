@@ -51,8 +51,12 @@ public class ClienteGUI extends JFrame {
         tablaCarrito = new JTable(modeloCarrito);
         panelCarrito.add(new JScrollPane(tablaCarrito), BorderLayout.CENTER);
         
+        JPanel panelBotonesCarrito = new JPanel();
+        JButton btnQuitar = new JButton("Quitar Producto");
         JButton btnComprar = new JButton("Finalizar Compra");
-        panelCarrito.add(btnComprar, BorderLayout.SOUTH);
+        panelBotonesCarrito.add(btnQuitar);
+        panelBotonesCarrito.add(btnComprar);
+        panelCarrito.add(panelBotonesCarrito, BorderLayout.SOUTH);
 
         add(panelCatalogo);
         add(panelCarrito);
@@ -69,11 +73,23 @@ public class ClienteGUI extends JFrame {
             String id = (String) modeloCatalogo.getValueAt(fila, 0);
             String nombre = (String) modeloCatalogo.getValueAt(fila, 1);
             double precio = (double) modeloCatalogo.getValueAt(fila, 2);
+            int stockDisponible = (int) modeloCatalogo.getValueAt(fila, 3);
+            
+            if (stockDisponible <= 0) {
+                JOptionPane.showMessageDialog(this, "Producto agotado. Ya no hay stock.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
             
             String cantStr = JOptionPane.showInputDialog(this, "Cuantos " + nombre + " vas a llevar?");
             if (cantStr != null && !cantStr.isEmpty()) {
                 try {
                     int cantidad = Integer.parseInt(cantStr);
+                    
+                    if (cantidad > stockDisponible) {
+                        JOptionPane.showMessageDialog(this, "Solo hay " + stockDisponible + " unidades disponibles.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                    
                     if (cantidad > 0) {
                         Product p = Product.newBuilder().setId(id).setName(nombre).setPrice(precio).setQuantity(cantidad).build();
                         carritoLocal.add(p);
@@ -85,6 +101,16 @@ public class ClienteGUI extends JFrame {
                     JOptionPane.showMessageDialog(this, "Ingresa un numero valido.");
                 }
             }
+        });
+
+        btnQuitar.addActionListener(e -> {
+            int fila = tablaCarrito.getSelectedRow();
+            if (fila == -1) {
+                JOptionPane.showMessageDialog(this, "Selecciona un producto de tu carrito para quitarlo.");
+                return;
+            }
+            carritoLocal.remove(fila);
+            modeloCarrito.removeRow(fila);
         });
 
         btnComprar.addActionListener(e -> {
