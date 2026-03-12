@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.mycompany.grpccarritocompras";
+
+service ShoppingService {
+  rpc GetCatalog (Empty) returns (CatalogResponse);
+  rpc ProcessOrder (OrderRequest) returns (OrderResponse);
+}
+
+message Product {
+  string id = 1;
+  string name = 2;
+  double price = 3;
+  int32 quantity = 4;
+}
+
+message CatalogResponse {
+  repeated Product products = 1;
+}
+
+message OrderRequest {
+  repeated Product items = 1;
+}
+
+message OrderResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message Empty {}
