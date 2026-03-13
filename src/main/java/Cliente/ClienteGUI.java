@@ -18,9 +18,10 @@ import java.util.List;
  * @author Chino
  */
 public class ClienteGUI extends JFrame {
+
     private ManagedChannel channel;
     private ShoppingServiceGrpc.ShoppingServiceBlockingStub stub;
-    
+
     private JTable tablaCatalogo, tablaCarrito;
     private DefaultTableModel modeloCatalogo, modeloCarrito;
     private List<Product> carritoLocal = new ArrayList<>();
@@ -36,21 +37,27 @@ public class ClienteGUI extends JFrame {
 
         JPanel panelCatalogo = new JPanel(new BorderLayout());
         panelCatalogo.setBorder(BorderFactory.createTitledBorder("Catalogo de Productos"));
-        
-        modeloCatalogo = new DefaultTableModel(new String[]{"ID", "Producto", "Precio ($)", "Stock Servidor"}, 0);
+
+        modeloCatalogo = new DefaultTableModel(new String[]
+        {
+            "ID", "Producto", "Precio ($)", "Stock Servidor"
+        }, 0);
         tablaCatalogo = new JTable(modeloCatalogo);
         panelCatalogo.add(new JScrollPane(tablaCatalogo), BorderLayout.CENTER);
-        
+
         JButton btnAgregar = new JButton("Agregar al Carrito");
         panelCatalogo.add(btnAgregar, BorderLayout.SOUTH);
 
         JPanel panelCarrito = new JPanel(new BorderLayout());
         panelCarrito.setBorder(BorderFactory.createTitledBorder("Mi Carrito"));
-        
-        modeloCarrito = new DefaultTableModel(new String[]{"ID", "Producto", "Precio ($)", "Cantidad a Comprar"}, 0);
+
+        modeloCarrito = new DefaultTableModel(new String[]
+        {
+            "ID", "Producto", "Precio ($)", "Cantidad a Comprar"
+        }, 0);
         tablaCarrito = new JTable(modeloCarrito);
         panelCarrito.add(new JScrollPane(tablaCarrito), BorderLayout.CENTER);
-        
+
         JPanel panelBotonesCarrito = new JPanel();
         JButton btnQuitar = new JButton("Quitar Producto");
         JButton btnComprar = new JButton("Finalizar Compra");
@@ -62,72 +69,89 @@ public class ClienteGUI extends JFrame {
         add(panelCarrito);
 
         cargarCatalogo();
+        Timer timerSincronizacion = new Timer(20000, e -> cargarCatalogo());
+        timerSincronizacion.start();
 
-        btnAgregar.addActionListener(e -> {
+        btnAgregar.addActionListener(e ->
+        {
             int fila = tablaCatalogo.getSelectedRow();
-            if (fila == -1) {
+            if (fila == -1)
+            {
                 JOptionPane.showMessageDialog(this, "Selecciona un producto del catalogo primero.");
                 return;
             }
-            
+
             String id = (String) modeloCatalogo.getValueAt(fila, 0);
             String nombre = (String) modeloCatalogo.getValueAt(fila, 1);
             double precio = (double) modeloCatalogo.getValueAt(fila, 2);
-            int stockDisponible = (int) modeloCatalogo.getValueAt(fila, 3);
-            
-            if (stockDisponible <= 0) {
-                JOptionPane.showMessageDialog(this, "Producto agotado. Ya no hay stock.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            
+            int stockServidor = (int) modeloCatalogo.getValueAt(fila, 3);
+
             String cantStr = JOptionPane.showInputDialog(this, "Cuantos " + nombre + " vas a llevar?");
-            if (cantStr != null && !cantStr.isEmpty()) {
-                try {
+            if (cantStr != null && !cantStr.isEmpty())
+            {
+                try
+                {
                     int cantidad = Integer.parseInt(cantStr);
-                    
-                    if (cantidad > stockDisponible) {
-                        JOptionPane.showMessageDialog(this, "Solo hay " + stockDisponible + " unidades disponibles.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
-                    
-                    if (cantidad > 0) {
+                    if (cantidad > 0)
+                    {
+                        if (cantidad > stockServidor)
+                        {
+                            JOptionPane.showMessageDialog(this, "No puedes agregar más de lo que hay en stock.", "Stock insuficiente", JOptionPane.WARNING_MESSAGE);
+                            return;
+                        }
+
                         Product p = Product.newBuilder().setId(id).setName(nombre).setPrice(precio).setQuantity(cantidad).build();
                         carritoLocal.add(p);
-                        modeloCarrito.addRow(new Object[]{id, nombre, precio, cantidad});
-                    } else {
+                        modeloCarrito.addRow(new Object[]
+                        {
+                            id, nombre, precio, cantidad
+                        });
+
+                        cargarCatalogo();
+                        
+                    } else
+                    {
                         JOptionPane.showMessageDialog(this, "La cantidad debe ser mayor a 0.");
                     }
-                } catch (NumberFormatException ex) {
+                } catch (NumberFormatException ex)
+                {
                     JOptionPane.showMessageDialog(this, "Ingresa un numero valido.");
                 }
             }
         });
 
-        btnQuitar.addActionListener(e -> {
+        btnQuitar.addActionListener(e ->
+        {
             int fila = tablaCarrito.getSelectedRow();
-            if (fila == -1) {
+            if (fila == -1)
+            {
                 JOptionPane.showMessageDialog(this, "Selecciona un producto de tu carrito para quitarlo.");
                 return;
             }
             carritoLocal.remove(fila);
             modeloCarrito.removeRow(fila);
+            cargarCatalogo();
         });
 
-        btnComprar.addActionListener(e -> {
-            if (carritoLocal.isEmpty()) {
+        btnComprar.addActionListener(e ->
+        {
+            if (carritoLocal.isEmpty())
+            {
                 JOptionPane.showMessageDialog(this, "El carrito esta vacio.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            
+
             OrderRequest request = OrderRequest.newBuilder().addAllItems(carritoLocal).build();
             OrderResponse response = stub.processOrder(request);
-            
-            if (response.getSuccess()) {
+
+            if (response.getSuccess())
+            {
                 JOptionPane.showMessageDialog(this, response.getMessage(), "Exito", JOptionPane.INFORMATION_MESSAGE);
                 carritoLocal.clear();
                 modeloCarrito.setRowCount(0);
-                cargarCatalogo(); 
-            } else {
+                cargarCatalogo();
+            } else
+            {
                 JOptionPane.showMessageDialog(this, response.getMessage(), "Error en la compra", JOptionPane.ERROR_MESSAGE);
             }
         });
@@ -136,8 +160,24 @@ public class ClienteGUI extends JFrame {
     private void cargarCatalogo() {
         modeloCatalogo.setRowCount(0);
         CatalogResponse response = stub.getCatalog(Empty.newBuilder().build());
-        for (Product p : response.getProductsList()) {
-            modeloCatalogo.addRow(new Object[]{p.getId(), p.getName(), p.getPrice(), p.getQuantity()});
+
+        for (Product p : response.getProductsList())
+        {
+            int apartadosLocal = 0;
+            for (Product item : carritoLocal)
+            {
+                if (item.getId().equals(p.getId()))
+                {
+                    apartadosLocal += item.getQuantity();
+                }
+            }
+
+            int stockVisual = p.getQuantity() - apartadosLocal;
+
+            modeloCatalogo.addRow(new Object[]
+            {
+                p.getId(), p.getName(), p.getPrice(), stockVisual
+            });
         }
     }
 
